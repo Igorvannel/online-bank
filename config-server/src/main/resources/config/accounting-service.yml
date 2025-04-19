@@ -1,0 +1,39 @@
+server:
+  port: 8082
+
+spring:
+  application:
+    name: accounting-service
+  data:
+    mongodb:
+      uri: mongodb://acct_user:acct_pass@mongo1:27017,mongo2:27017,mongo3:27017/accounting-service?replicaSet=rs0&readPreference=primaryPreferred
+      auto-index-creation: true
+
+app:
+  jwt:
+    secret: ${JWT_SECRET}
+    expiration: 86400000 # 24 hours
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: always
+
+eureka:
+  client:
+    enabled: true
+    serviceUrl:
+      defaultZone: http://service-discovery:8761/eureka
+  instance:
+    preferIpAddress: true
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    operations-sorter: method

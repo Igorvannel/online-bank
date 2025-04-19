@@ -1,0 +1,45 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: api-gateway
+  cloud:
+    gateway:
+      discovery:
+        locator:
+          enabled: true
+          lowerCaseServiceId: true
+      routes:
+        - id: auth-service
+          uri: lb://auth-service
+          predicates:
+            - Path=/auth/**
+          filters:
+            - RewritePath=/auth/(?<segment>.*), /auth/${segment}
+        - id: accounting-service
+          uri: lb://accounting-service
+          predicates:
+            - Path=/account/**
+          filters:
+            - RewritePath=/account/(?<segment>.*), /account/${segment}
+
+app:
+  jwt:
+    secret: U2FsdGVkX1+XrCkUhz7gU6SzP4E9dyDq0j6f6vOwA1jP4Xl6H3oc61hZGz7Fx0T7
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: always
+
+eureka:
+  client:
+    serviceUrl:
+      defaultZone: http://localhost:8761/eureka/
+  instance:
+    preferIpAddress: true

@@ -1,0 +1,40 @@
+server:
+  port: 8081
+
+spring:
+  application:
+    name: auth-service
+  data:
+    mongodb:
+      uri: mongodb://auth_user:auth_pass@mongo1:27017,mongo2:27017,mongo3:27017/auth-service?replicaSet=rs0&readPreference=primaryPreferred
+      #uri: mongodb://localhost:27017/auth-service
+      auto-index-creation: true
+
+app:
+  jwt:
+    secret: ${JWT_SECRET}
+    expiration: 86400000 # 24 hours
+
+eureka:
+  client:
+    enabled: true
+    serviceUrl:
+      defaultZone: http://service-discovery:8761/eureka
+  instance:
+    preferIpAddress: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: always
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    operations-sorter: method

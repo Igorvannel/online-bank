@@ -1,0 +1,40 @@
+server:
+  port: 8082
+
+spring:
+  application:
+    name: accounting-service
+  cloud:
+    config:
+      uri: http://localhost:8888
+      fail-fast: true
+  config:
+    import: optional:configserver:http://localhost:8888
+
+  # These properties are loaded from config server in a real environment
+  data:
+    mongodb:
+      uri: mongodb://localhost:27017,localhost:27018,localhost:27019/accounting-service?replicaSet=rs0
+      auto-index-creation: true
+
+app:
+  jwt:
+    secret: U2FsdGVkX1+XrCkUhz7gU6SzP4E9dyDq0j6f6vOwA1jP4Xl6H3oc61hZGz7Fx0T7
+    expiration: 86400000 # 24 hours
+# Actuator configuration
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: always
+
+# Swagger/OpenAPI configuration
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    operations-sorter: method

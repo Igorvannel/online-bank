@@ -1,0 +1,237 @@
+version: '3.8'
+
+services:
+  # MongoDB Replica Set
+  mongo1:
+    image: mongo:latest
+    container_name: mongo1
+    command: mongod --replSet rs0 --bind_ip_all
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo1-data:/data/db
+    networks:
+      - online-bank-network
+    healthcheck:
+      test: mongosh --eval "db.adminCommand('ping')"
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
+
+  mongo2:
+    image: mongo:latest
+    container_name: mongo2
+    command: mongod --replSet rs0 --bind_ip_all
+    ports:
+      - "27018:27017"
+    volumes:
+      - mongo2-data:/data/db
+    networks:
+      - online-bank-network
+    depends_on:
+      - mongo1
+    healthcheck:
+      test: mongosh --eval "db.adminCommand('ping')"
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
+
+  mongo3:
+    image: mongo:latest
+    container_name: mongo3
+    command: mongod --replSet rs0 --bind_ip_all
+    ports:
+      - "27019:27017"
+    volumes:
+      - mongo3-data:/data/db
+    networks:
+      - online-bank-network
+    depends_on:
+      - mongo2
+    healthcheck:
+      test: mongosh --eval "db.adminCommand('ping')"
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
+
+  # Initialize MongoDB Replica Set
+  mongo-init:
+    image: mongo:latest
+    container_name: mongo-init
+    depends_on:
+      mongo1:
+        condition: service_healthy
+      mongo2:
+        condition: service_healthy
+      mongo3:
+        condition: service_healthy
+    command: >
+      mongosh --host mongo1:27017 --eval '
+        rs.initiate({
+          _id: "rs0",
+          members: [
+            { _id: 0, host: "mongo1:27017" },
+            { _id: 1, host: "mongo2:27017" },
+            { _id: 2, host: "mongo3:27017" }
+          ]
+        });
+      
+        // Wait for replica set to initialize
+        while (rs.status().ok !== 1) {
+          sleep(1000);
+        }
+      
+        // Create users and databases
+        db = db.getSiblingDB("admin");
+        db.createUser({
+          user: "admin",
+          pwd: "admin123",
+          roles: [ { role: "root", db: "admin" } ]
+        });
+      
+        db = db.getSiblingDB("auth-service");
+        db.createUser({
+          user: "auth_user",
+          pwd: "auth_pass",
+          roles: [ { role: "readWrite", db: "auth-service" } ]
+        });
+      
+        db = db.getSiblingDB("accounting-service");
+        db.createUser({
+          user: "acct_user",
+          pwd: "acct_pass",
+          roles: [ { role: "readWrite", db: "accounting-service" } ]
+        });
+      '
+    networks:
+      - online-bank-network
+
+  # Service Discovery (Eureka)
+  service-discovery:
+    build:
+      context: .
+      dockerfile: service-discovery/Dockerfile
+    container_name: service-discovery
+    ports:
+      - "8761:8761"
+    networks:
+      - online-bank-network
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+    healthcheck:
+      test: wget -qO- http://localhost:8761/actuator/health || exit 1
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # Config Server
+  config-server:
+    build:
+      context: .
+      dockerfile: config-server/Dockerfile
+    container_name: config-server
+    ports:
+      - "8888:8888"
+    networks:
+      - online-bank-network
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://service-discovery:8761/eureka/
+    depends_on:
+      service-discovery:
+        condition: service_healthy
+    healthcheck:
+      test: wget -qO- http://localhost:8888/actuator/health || exit 1
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # API Gateway
+  api-gateway:
+    build:
+      context: .
+      dockerfile: api-gateway/Dockerfile
+    container_name: api-gateway
+    ports:
+      - "8080:8080"
+    networks:
+      - online-bank-network
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+      - SPRING_CLOUD_CONFIG_URI=http://config-server:8888
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://service-discovery:8761/eureka/
+      - JWT_SECRET=YourSecretKeyHereMakeItAtLeast32BytesLongForSecurity
+    depends_on:
+      config-server:
+        condition: service_healthy
+    healthcheck:
+      test: wget -qO- http://localhost:8080/actuator/health || exit 1
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # Auth Service
+  auth-service:
+    build:
+      context: .
+      dockerfile: auth-service/Dockerfile
+    container_name: auth-service
+    ports:
+      - "8081:8081"
+    networks:
+      - online-bank-network
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+      - SPRING_CLOUD_CONFIG_URI=http://config-server:8888
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://service-discovery:8761/eureka/
+      - SPRING_DATA_MONGODB_URI=mongodb://auth_user:auth_pass@mongo1:27017,mongo2:27017,mongo3:27017/auth-service?replicaSet=rs0
+      - JWT_SECRET=YourSecretKeyHereMakeItAtLeast32BytesLongForSecurity
+    depends_on:
+      config-server:
+        condition: service_healthy
+      mongo-init:
+        condition: service_completed_successfully
+    healthcheck:
+      test: wget -qO- http://localhost:8081/actuator/health || exit 1
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # Accounting Service
+  accounting-service:
+    build:
+      context: .
+      dockerfile: accounting-service/Dockerfile
+    container_name: accounting-service
+    ports:
+      - "8082:8082"
+    networks:
+      - online-bank-network
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+      - SPRING_CLOUD_CONFIG_URI=http://config-server:8888
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://service-discovery:8761/eureka/
+      - SPRING_DATA_MONGODB_URI=mongodb://acct_user:acct_pass@mongo1:27017,mongo2:27017,mongo3:27017/accounting-service?replicaSet=rs0
+      - JWT_SECRET=YourSecretKeyHereMakeItAtLeast32BytesLongForSecurity
+    depends_on:
+      config-server:
+        condition: service_healthy
+      mongo-init:
+        condition: service_completed_successfully
+    healthcheck:
+      test: wget -qO- http://localhost:8082/actuator/health || exit 1
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+networks:
+  online-bank-network:
+    driver: bridge
+
+volumes:
+  mongo1-data:
+  mongo2-data:
+  mongo3-data:

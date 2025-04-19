@@ -1,0 +1,16 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: api-gateway
+  cloud:
+    config:
+      uri: http://localhost:8888
+      fail-fast: true
+  config:
+    import: optional:configserver:http://localhost:8888
+
+app:
+  jwt:
+    secret: ${JWT_SECRET:U2FsdGVkX1+XrCkUhz7gU6SzP4E9dyDq0j6f6vOwA1jP4Xl6H3oc61hZGz7Fx0T7}
