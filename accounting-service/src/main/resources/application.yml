@@ -1,43 +1,62 @@
 server:
-  port: 8082
+  port: 8060
+  forward-headers-strategy: framework
+
+eureka:
+  client:
+    enabled: true
+    serviceUrl:
+      defaultZone: ${EUREKA_SERVER:http://localhost:8761/eureka}
+  instance:
+    preferIpAddress: true
+
+logging:
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} ${LOG_LEVEL_PATTERN:-%5p} %m%n"
+  level:
+    org.springframework.cloud.gateway: TRACE
+    org.springframework.http.server.reactive: TRACE
 
 spring:
-  application:
-    name: accounting-service
   cloud:
+    gateway:
+      httpclient:
+        ssl:
+          useInsecureTrustManager: true
+      discovery:
+        locator:
+          enabled: true
+      routes:
+        - id: auth-service
+          uri: lb://auth-service
+          predicates:
+            - Path=/auth/**, /online-bank/auth/**
+          filters:
+            - ContextPathRewritePath=/online-bank/auth/(?<path>.*), /$\{path}
+            - RewritePath=/auth/(?<path>.*), /$\{path}
+        - id: accounting-service
+          uri: lb://accounting-service
+          predicates:
+            - Path=/account/**, /online-bank/account/**
+          filters:
+            - ContextPathRewritePath=/online-bank/account/(?<path>.*), /$\{path}
+            - RewritePath=/account/(?<path>.*), /$\{path}
+
     config:
       uri: http://localhost:8888
       fail-fast: true
   config:
     import: optional:configserver:http://localhost:8888
 
-  # These properties are loaded from config server in a real environment
-  data:
-    mongodb:
-      #uri: mongodb://localhost:27017,localhost:27018,localhost:27019/accounting-service?replicaSet=rs0
-      uri: mongodb://localhost:27017/accounting-service
-      auto-index-creation: true
-
 app:
   jwt:
-    secret: U2FsdGVkX1+XrCkUhz7gU6SzP4E9dyDq0j6f6vOwA1jP4Xl6H3oc61hZGz7Fx0T7
-    expiration: 86400000 # 24 hours
+    secret: ${JWT_SECRET:U2FsdGVkX1+XrCkUhz7gU6SzP4E9dyDq0j6f6vOwA1jP4Xl6H3oc61hZGz7Fx0T7}
 
-JWT_SECRET: U2FsdGVkX1+XrCkUhz7gU6SzP4E9dyDq0j6f6vOwA1jP4Xl6H3oc61hZGz7Fx0T7
-# Actuator configuration
-management:
-  endpoints:
-    web:
-      exposure:
-        include: health,info,metrics
-  endpoint:
-    health:
-      show-details: always
-
-# Swagger/OpenAPI configuration
 springdoc:
-  api-docs:
-    path: /v3/api-docs
+  cache:
+    disabled: true
+  version: '@springdoc.version@'
   swagger-ui:
-    path: /swagger-ui.html
-    operations-sorter: method
+    use-root-path: true
+  api-docs:
+    version: openapi_3_1
