@@ -14,8 +14,8 @@ spring:
   # These properties are loaded from config server in a real environment
   data:
     mongodb:
-      uri: mongodb://auth_user:auth_pass@mongo1:27017,mongo2:27017,mongo3:27017/auth-service?replicaSet=rs0&readPreference=primaryPreferred
-      #uri: mongodb://localhost:27017/auth-service
+      #uri: mongodb://auth_user:auth_pass@mongo1:27017,mongo2:27017,mongo3:27017/auth-service?replicaSet=rs0&readPreference=primaryPreferred&w=majority
+      uri: mongodb://localhost:27017/auth-service
       auto-index-creation: true
 
 app:
@@ -23,6 +23,7 @@ app:
     secret: U2FsdGVkX1+XrCkUhz7gU6SzP4E9dyDq0j6f6vOwA1jP4Xl6H3oc61hZGz7Fx0T7
     expiration: 86400000 # 24 hours
 
+JWT_SECRET: U2FsdGVkX1+XrCkUhz7gU6SzP4E9dyDq0j6f6vOwA1jP4Xl6H3oc61hZGz7Fx0T7
 # Actuator configuration
 management:
   endpoints:

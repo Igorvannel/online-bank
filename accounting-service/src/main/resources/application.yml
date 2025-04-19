@@ -14,13 +14,16 @@ spring:
   # These properties are loaded from config server in a real environment
   data:
     mongodb:
-      uri: mongodb://localhost:27017,localhost:27018,localhost:27019/accounting-service?replicaSet=rs0
+      #uri: mongodb://localhost:27017,localhost:27018,localhost:27019/accounting-service?replicaSet=rs0
+      uri: mongodb://localhost:27017/accounting-service
       auto-index-creation: true
 
 app:
   jwt:
     secret: U2FsdGVkX1+XrCkUhz7gU6SzP4E9dyDq0j6f6vOwA1jP4Xl6H3oc61hZGz7Fx0T7
     expiration: 86400000 # 24 hours
+
+JWT_SECRET: U2FsdGVkX1+XrCkUhz7gU6SzP4E9dyDq0j6f6vOwA1jP4Xl6H3oc61hZGz7Fx0T7
 # Actuator configuration
 management:
   endpoints:

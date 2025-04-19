@@ -6,7 +6,8 @@ spring:
     name: accounting-service
   data:
     mongodb:
-      uri: mongodb://acct_user:acct_pass@mongo1:27017,mongo2:27017,mongo3:27017/accounting-service?replicaSet=rs0&readPreference=primaryPreferred
+      #uri: mongodb://acct_user:acct_pass@mongo1:27017,mongo2:27017,mongo3:27017/accounting-service?replicaSet=rs0&readPreference=primaryPreferred
+      uri: mongodb://localhost:27017/accounting-service
       auto-index-creation: true
 
 app:
